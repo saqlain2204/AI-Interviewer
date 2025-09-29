@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Interviewer - GMeet Style</title>
+  <style>
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: linear-gradient(120deg, #e0e7ff 0%, #f5f5f5 100%); margin: 0; }
+    .container { max-width: 600px; margin: 40px auto; background: #fff; border-radius: 20px; box-shadow: 0 6px 32px #0002; padding: 48px 40px 36px 40px; }
+    .main-flex { display: flex; gap: 48px; align-items: flex-start; justify-content: center; }
+    #qaLogSidebar { width: 360px; min-width: 240px; max-width: 420px; background: #f8fafc; border-radius: 16px; box-shadow: 0 2px 12px #0001; padding: 32px 24px; height: 100%; min-height: 420px; display: flex; flex-direction: column; }
+    #qaLogSidebar h3 { margin-top: 0; margin-bottom: 24px; font-size: 1.25em; color: #2563eb; letter-spacing: 0.5px; }
+    #qaLogList { font-size: 1.05em; overflow-y: auto; max-height: 70vh; }
+    .qa-log-item { background: #e3f0ff; border-radius: 10px; margin-bottom: 22px; padding: 18px 18px 14px 18px; box-shadow: 0 1px 6px #0001; }
+    .qa-log-item b { color: #4285f4; }
+    .qa-log-item .user { color: #a855f7; font-weight: 500; }
+    .action-btn { width: 100%; padding: 18px 0; border: none; border-radius: 10px; font-size: 1.13em; font-weight: bold; margin-top: 24px; margin-bottom: 0; cursor: pointer; transition: background 0.2s, color 0.2s; box-shadow: 0 2px 8px #0001; letter-spacing: 0.5px; }
+    #endInterviewBtn { background: linear-gradient(90deg, #f59e42 60%, #fbbf24 100%); color: #fff; }
+    #endInterviewBtn:disabled { background: #f3f4f6; color: #aaa; cursor: not-allowed; }
+    #downloadReportBtn { background: linear-gradient(90deg, #10b981 60%, #34d399 100%); color: #fff; margin-top: 18px; }
+    #downloadReportBtn:disabled { background: #f3f4f6; color: #aaa; cursor: not-allowed; }
+    .video-mock { width: 100%; height: 220px; background: linear-gradient(135deg, #4285f4 60%, #a0c4ff 100%); border-radius: 14px; margin-bottom: 36px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 2.2em; font-weight: 600; letter-spacing: 1px; box-shadow: 0 2px 8px #0001; }
+    .controls { display: flex; gap: 18px; margin-bottom: 32px; flex-wrap: wrap; }
+    .controls input, .controls select { flex: 1 1 180px; padding: 13px; border-radius: 8px; border: 1px solid #bfc9d1; font-size: 1.05em; background: #f8fafc; transition: border 0.2s; }
+    .controls input:focus, .controls select:focus { border: 1.5px solid #4285f4; outline: none; }
+    .controls button { padding: 14px 32px; border: none; border-radius: 8px; background: #4285f4; color: #fff; font-weight: bold; font-size: 1.05em; cursor: pointer; box-shadow: 0 2px 8px #0001; transition: background 0.2s; }
+    .controls button:hover { background: #2563eb; }
+    .qa-section { display: flex; flex-direction: column; gap: 24px; margin-bottom: 36px; }
+    .qa-section > div { font-size: 1.13em; }
+    .qa-section strong { font-weight: 600; }
+    .audio-player { margin-top: 36px; }
+    #status { margin: 28px 0 0 0; color: #2563eb; font-weight: 500; min-height: 28px; font-size: 1.08em; }
+    @media (max-width: 900px) {
+      .main-flex { flex-direction: column; gap: 0; }
+      #qaLogSidebar { width: 100%; max-width: 100vw; min-width: 0; margin-top: 32px; }
+      .container { margin: 24px 0; padding: 18px 4vw; }
+    }
+  </style>
+</head>
+<body>
+  <div class="main-flex">
+    <div style="flex: 1;">
+      <!-- Main interview UI here -->
+      <div class="container">
+        <div class="video-mock" id="videoMock">
+          <span id="videoStatus">Camera Off</span>
+          <video id="webcam" autoplay playsinline style="display:none; width:100%; height:100%; border-radius:8px;"></video>
+        </div>
+        <form id="interviewForm" class="controls">
+          <input type="text" name="role" placeholder="Role" required>
+          <select name="experience_level" required>
+            <option value="fresher">Fresher</option>
+            <option value="experienced">Experienced</option>
+          </select>
+          <input type="text" name="company_name" placeholder="Company Name" required>
+          <input type="url" name="company_website" placeholder="Company Website" required>
+          <select name="type_of_interview" required>
+            <option value="hr">HR</option>
+            <option value="core_cs">Core CS</option>
+          </select>
+          <button type="submit">Start Interview</button>
+        </form>
+        <div class="controls" style="justify-content:center;">
+          <button type="button" id="micBtn">🎤 Mic</button>
+          <button type="button" id="playBtn" disabled>▶️ Play</button>
+          <button type="button" id="camBtn">📷 Camera</button>
+          <button type="button" id="playAllQuestionsBtn">Play All Questions</button>
+        </div>
+        <div id="status"></div>
+        <div class="qa-section" style="display: flex; flex-direction: column; gap: 24px; margin-bottom: 36px;">
+          <div style="background:#e3f0ff; padding:16px; border-radius:8px;">
+            <strong>Interviewer:</strong>
+            <span id="interviewerQuestion">(Waiting for question...)</span>
+          </div>
+          <div style="background:#f9e3e3; padding:16px; border-radius:8px;">
+            <strong>You:</strong>
+            <span id="userResponse">(Your response will appear here)</span>
+          </div>
+        </div>
+        <div class="audio-player">
+          <audio id="audio" controls style="width:100%"></audio>
+        </div>
+        <button id="endInterviewBtn" class="action-btn" type="button">⏹️ End Interview</button>
+        <button id="downloadReportBtn" class="action-btn" type="button">📄 Download & View Report</button>
+        <div id="reportViewer" style="margin-top:24px; display:none;">
+          <iframe id="reportFrame" style="width:100%; height:500px; border:1px solid #ccc; border-radius:8px;"></iframe>
+        </div>
+      </div>
+    </div>
+    <div id="qaLogSidebar">
+      <h3>Interview Log</h3>
+      <div id="qaLogList"></div>
+    </div>
+  </div>
+  <script src="recorder.js"></script>
+  <script>
+    let sessionId = null;
+    let currentQuestionIdx = 0;
+    let lastUserAudioBlob = null;
+    let camStream = null;
+    let qaLog = [];
+
+    async function playAudioUrl(url) {
+      const audioPlayer = document.getElementById('audio');
+      console.log('Attempting to play audio:', url);
+      audioPlayer.src = url;
+      try {
+        await audioPlayer.play();
+        return new Promise(resolve => {
+          audioPlayer.onended = resolve;
+        });
+      } catch (err) {
+        console.error('Audio playback error:', err);
+        document.getElementById('status').innerText = 'Audio playback error: ' + err;
+        return Promise.resolve();
+      }
+    }
+
+    async function startInterviewFlow(formData) {
+      // 1. Start session
+      const res = await fetch('http://localhost:8000/api/start-session/', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      sessionId = data.session_id;
+      document.getElementById('interviewerQuestion').innerText = data.intro_text;
+      document.getElementById('status').innerText = 'Playing introduction...';
+      await playAudioUrl('http://localhost:8000' + data.intro_audio_url);
+      document.getElementById('status').innerText = 'Please record your introduction.';
+      // 2. Record and upload user intro
+      qaLog = [];
+      let userIntroText = '';
+      userIntroText = await recordAndUploadUserAudio(0, true);
+      // 3. Loop through questions
+      let done = false;
+      while (!done) {
+        const qRes = await fetch(`http://localhost:8000/api/next-question/?session_id=${sessionId}`);
+        const qData = await qRes.json();
+        if (qData.done) {
+          done = true;
+          break;
+        }
+        currentQuestionIdx = qData.question_idx;
+        document.getElementById('interviewerQuestion').innerText = qData.question_text;
+        document.getElementById('status').innerText = `Playing question ${currentQuestionIdx}...`;
+        await playAudioUrl('http://localhost:8000' + qData.question_audio_url);
+        document.getElementById('status').innerText = 'Please record your answer.';
+        const userAnswer = await recordAndUploadUserAudio(currentQuestionIdx, false);
+        qaLog.push({
+          question: qData.question_text,
+          user_answer: userAnswer
+        });
+        updateQaLogSidebar(); // <-- Move this right after answer is received
+      }
+      // 4. Thank you audio
+      const tRes = await fetch(`http://localhost:8000/api/thank-you-audio/?session_id=${sessionId}`);
+      const tData = await tRes.json();
+      document.getElementById('interviewerQuestion').innerText = 'Interview complete!';
+      document.getElementById('status').innerText = 'Thank you for participating.';
+      await playAudioUrl('http://localhost:8000' + tData.thank_you_audio_url);
+
+      // 5. Save interview log
+      const logData = new FormData();
+      logData.append('session_id', sessionId);
+      logData.append('user_intro', userIntroText || '(User intro text here)');
+      logData.append('questions', JSON.stringify(qaLog));
+      await fetch('http://localhost:8000/api/save-log/', {
+        method: 'POST',
+        body: logData
+      });
+      document.getElementById('status').innerText += ' (Log saved)';
+      document.getElementById('downloadReportBtn').style.display = '';
+      document.getElementById('qaLogSidebar').style.display = '';
+    }
+
+    async function recordAndUploadUserAudio(questionIdx, isIntro) {
+      // Use browser recorder
+      const recordBtn = document.getElementById('micBtn');
+      const playBtn = document.getElementById('playBtn');
+      const userResponse = document.getElementById('userResponse');
+      userResponse.innerText = '(Recording...)';
+      recordBtn.disabled = false;
+      playBtn.disabled = true;
+      lastUserAudioBlob = null;
+      // Wait for user to record and stop
+      await new Promise(resolve => {
+        recordBtn.onclick = async function() {
+          if (recordBtn.dataset.recording === 'true') {
+            mediaRecorder.stop();
+            recordBtn.innerText = '🎤 Mic';
+            recordBtn.dataset.recording = 'false';
+          } else {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            audioChunks = [];
+            mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+            mediaRecorder.onstop = () => {
+              lastUserAudioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+              userResponse.innerText = '(Recorded)';
+              playBtn.disabled = false;
+              resolve();
+            };
+            mediaRecorder.start();
+            recordBtn.innerText = '⏹️ Stop';
+            recordBtn.dataset.recording = 'true';
+            playBtn.disabled = true;
+          }
+        };
+      });
+      // Play button for user to review
+      playBtn.onclick = function() {
+        if (lastUserAudioBlob) {
+          const audioPlayer = document.getElementById('audio');
+          audioPlayer.src = URL.createObjectURL(lastUserAudioBlob);
+          audioPlayer.play();
+        }
+      };
+      // Upload audio to backend and get transcript
+      const uploadData = new FormData();
+      uploadData.append('session_id', sessionId);
+      uploadData.append('question_idx', questionIdx);
+      uploadData.append('audio', lastUserAudioBlob, isIntro ? 'user_intro.wav' : `answer_${questionIdx}.wav`);
+      const res = await fetch('http://localhost:8000/api/upload-answer/', {
+        method: 'POST',
+        body: uploadData
+      });
+      userResponse.innerText = '(Uploaded)';
+      let answerText = '';
+      if (res.ok) {
+        const data = await res.json();
+        answerText = data.transcript || '(No transcript)';
+        // Update the log immediately after receiving transcript
+        if (!isIntro) {
+          qaLog.push({
+            question: document.getElementById('interviewerQuestion').innerText,
+            user_answer: answerText
+          });
+          updateQaLogSidebar();
+        }
+      } else {
+        answerText = '(STT failed)';
+      }
+      return answerText;
+    }
+
+    function updateQaLogSidebar() {
+      const qaLogList = document.getElementById('qaLogList');
+      qaLogList.innerHTML = qaLog.map((item, idx) =>
+        `<div class='qa-log-item'><b>Q${idx+1}:</b> ${item.question}<br><span class='user'><b>You:</b> ${item.user_answer}</span></div>`
+      ).join('');
+    }
+
+    const camBtn = document.getElementById('camBtn');
+    const webcam = document.getElementById('webcam');
+    const videoStatus = document.getElementById('videoStatus');
+    camBtn.onclick = async function() {
+      if (!camStream) {
+        try {
+          camStream = await navigator.mediaDevices.getUserMedia({ video: true });
+          webcam.srcObject = camStream;
+          webcam.style.display = 'block';
+          videoStatus.style.display = 'none';
+          camBtn.style.background = '#0f0';
+          camBtn.innerText = '📷 Camera On';
+        } catch (e) {
+          alert('Camera access denied.');
+        }
+      } else {
+        // Stop camera
+        camStream.getTracks().forEach(track => track.stop());
+        camStream = null;
+        webcam.srcObject = null;
+        webcam.style.display = 'none';
+        videoStatus.style.display = '';
+        camBtn.style.background = '';
+        camBtn.innerText = '📷 Camera';
+      }
+    };
+
+    document.getElementById('interviewForm').onsubmit = async function(e) {
+      e.preventDefault();
+      const form = e.target;
+      const data = new FormData(form);
+      document.getElementById('status').innerText = 'Starting interview...';
+      await startInterviewFlow(data);
+    };
+
+    document.getElementById('downloadReportBtn').onclick = async function() {
+      if (!sessionId) return;
+      const res = await fetch('http://localhost:8000/api/generate-report/', {
+        method: 'POST',
+        body: new URLSearchParams({ session_id: sessionId })
+      });
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        document.getElementById('reportViewer').style.display = '';
+        document.getElementById('reportFrame').src = url;
+      } else {
+        alert('Failed to generate report.');
+      }
+    };
+    document.getElementById('downloadReportBtn').style.display = 'none';
+    document.getElementById('qaLogSidebar').style.display = '';
+
+    // End Interview button logic
+    document.getElementById('endInterviewBtn').onclick = async function() {
+      if (!sessionId) {
+        alert('No active interview session.');
+        return;
+      }
+      document.getElementById('status').innerText = 'Ending interview and saving log...';
+      const res = await fetch('http://localhost:8000/api/end-interview/', {
+        method: 'POST',
+        body: new URLSearchParams({ session_id: sessionId })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        document.getElementById('status').innerText = 'Interview ended and log saved.';
+        document.getElementById('endInterviewBtn').disabled = true;
+        document.getElementById('downloadReportBtn').style.display = '';
+      } else {
+        document.getElementById('status').innerText = 'Failed to end interview.';
+      }
+    };
+  </script>
+</body>
+</html>
