@@ -122,6 +122,7 @@ def upload_answer(session_id: str = Form(...), question_idx: int = Form(...), au
             "questions": [
                 {
                     "question": session["interview_info"]["questions_data"].questions[a["question_idx"]-1] if a["question_idx"] > 0 else "",
+                    "expected_answer": session["interview_info"]["questions_data"].answers[a["question_idx"]-1] if a["question_idx"] > 0 and hasattr(session["interview_info"]["questions_data"], "answers") else "",
                     "user_answer": a["transcript"]
                 }
                 for a in session["answers"] if a["question_idx"] > 0
@@ -145,6 +146,7 @@ def end_interview(session_id: str = Form(...)):
         "questions": [
             {
                 "question": session["interview_info"]["questions_data"].questions[a["question_idx"]-1] if a["question_idx"] > 0 else "",
+                "expected_answer": session["interview_info"]["questions_data"].answers[a["question_idx"]-1] if a["question_idx"] > 0 and hasattr(session["interview_info"]["questions_data"], "answers") else "",
                 "user_answer": a["transcript"]
             }
             for a in session["answers"] if a["question_idx"] > 0

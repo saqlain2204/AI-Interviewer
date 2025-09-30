@@ -100,10 +100,9 @@ def run_interview(role, experience_level, company_name, company_website, type_of
     questions_obj = interview_info["questions_data"]
     questions = questions_obj.questions
     expected_answers = questions_obj.answers
-    question_types = questions_obj.questions_type
     interview_log = []
 
-    for idx, (q, qtype, expected) in enumerate(zip(questions, question_types, expected_answers)):
+    for idx, (q, expected) in enumerate(zip(questions, expected_answers)):
         # Generate & play question audio
         question_audio = str(questions_dir / f"question_{idx+1}.wav")
         tts_thread = threading.Thread(target=text_to_speech, args=(q, question_audio))
@@ -127,7 +126,6 @@ def run_interview(role, experience_level, company_name, company_website, type_of
 
         interview_log.append({
             "question": q,
-            "question_type": qtype,
             "expected_answer": expected,
             "user_answer": user_answer
         })
